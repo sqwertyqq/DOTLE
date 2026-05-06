@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Dotle — угадай героя Dota 2</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0a0f1e 0%, #0f172a 100%);
+            font-family: 'Segoe UI', 'Courier New', 'Dota2 Font', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .game-container {
+            max-width: 1200px;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(12px);
+            border-radius: 2rem;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            box-shadow: 0 25px 40px rgba(0, 0, 0, 0.5);
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin: 0 0 0.25rem 0;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #e6b422, #ffd966);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .sub {
+            text-align: center;
+            color: #b9c3d9;
+            font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+            font-style: italic;
+        }
+
+        .search-area {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            flex: 3;
+            padding: 14px 20px;
+            font-size: 1.1rem;
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 60px;
+            color: #f1f5f9;
+            font-family: monospace;
+            outline: none;
+            transition: 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: #eab308;
+            box-shadow: 0 0 8px #eab30888;
+        }
+
+        .suggestions {
+            flex: 1;
+            background: #1e293b;
+            border-radius: 60px;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            max-height: 300px;
+            overflow-y: auto;
+            position: absolute;
+            width: 300px;
+            z-index: 100;
+            margin-top: 50px;
+            display: none;
+            border: 1px solid #eab308;
+        }
+
+        .suggestions li {
+            padding: 10px 18px;
+            cursor: pointer;
+            color: #cbd5e6;
+            border-bottom: 1px solid #334155;
+        }
+
+        .suggestions li:hover {
+            background: #eab308;
+            color: #0f172a;
+            font-weight: bold;
+        }
+
+        .guess-btn {
+            flex: 1;
+            background: #eab308;
+            border: none;
+            border-radius: 60px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: 0.2s;
+            color: #0f172a;
+            font-family: monospace;
+        }
+
+        .guess-btn:hover {
+            background: #facc15;
+            transform: scale(1.02);
+        }
+
+        .attempt-counter {
+            text-align: right;
+            color: #e2e8f0;
+            margin-bottom: 15px;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 1.2rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            font-family: monospace;
+        }
+
+        th, td {
+            padding: 12px 8px;
+            text-align: center;
+            border-bottom: 1px solid #334155;
+            color: #f8fafc;
+        }
+
+        th {
+            background-color: #0f172a;
+            color: #ffd966;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+        }
+
+        td {
+            background-color: #0f172a80;
+            font-weight: 500;
+        }
+
+        .green {
+            background-color: #15803d !important;
+            color: white;
+            text-shadow: 0 0 2px black;
+        }
+
+        .yellow {
+            background-color: #a16207 !important;
+            color: #fffbeb;
+        }
+
+        .red {
+            background-color: #991b1b !important;
+            color: #fecaca;
+        }
+
+        .arrow-up::after {
+            content: " ▲";
+            font-size: 0.7rem;
+            color: #bbf7d0;
+        }
+
+        .arrow-down::after {
+            content: " ▼";
+            font-size: 0.7rem;
+            color: #fecaca;
+        }
+
+        .message {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            padding: 12px;
+            border-radius: 40px;
+            background: #1e293b;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 20px;
+            color: #64748b;
+            font-size: 0.7rem;
+        }
+
+        @media (max-width: 650px) {
+            th, td { padding: 8px 4px; font-size: 0.7rem; }
+            h1 { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="game-container">
+    <h1>⚔️ DOTLE ⚔️</h1>
+    <div class="sub">угадай героя Dota 2</div>
+
+    <div class="search-area">
+        <input type="text" id="heroInput" class="search-input" placeholder="введите имя героя (например: Pudge, Juggernaut, Invoker)" autocomplete="off">
+        <button id="guessBtn" class="guess-btn">Угадать →</button>
+        <ul id="suggestionsList" class="suggestions"></ul>
+    </div>
+
+    <div class="attempt-counter">попытки: <span id="attemptCount">0</span> / 6</div>
+
+    <div class="table-wrapper">
+        <table id="guessTable">
+            <thead>
+                <tr><th>Герой</th><th>добавлен(патч)</th><th>Баз. ХП</th><th>Баз. урон</th><th>Атрибут</th><th>Тип атаки</th></tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr><td colspan="6" style="text-align:center"> начните вводить имя и жмите "Угадать"</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="messageBox" class="message"></div>
+    <footer>🎯 Зелёный = совпадение, желтый = близко ❌ Красный мимо. ⬆️⬇️ больше/меньше.</footer>
+</div>
+
+<script>
+    // ГЕРОИ
+    const HEROES_DB = [
+        { name: "Anti-Mage", added: 6.10, health: 620, damage: 52, attribute: "Agility", attackType: "Melee" },
+        { name: "Axe", added: 6.10, health: 700, damage: 54, attribute: "Strength", attackType: "Melee" },
+        { name: "Pudge", added: 6.10, health: 710, damage: 58, attribute: "Strength", attackType: "Melee" },
+        { name: "Juggernaut", added: 6.10, health: 640, damage: 56, attribute: "Agility", attackType: "Melee" },
+        { name: "Crystal Maiden", added: 6.10, health: 550, damage: 45, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Invoker", added: 6.10, health: 600, damage: 44, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Phantom Assassin", added: 6.10, health: 590, damage: 52, attribute: "Agility", attackType: "Melee" },
+        { name: "Sniper", added: 6.10, health: 560, damage: 47, attribute: "Agility", attackType: "Ranged" },
+        { name: "Earthshaker", added: 6.10, health: 680, damage: 62, attribute: "Strength", attackType: "Melee" },
+        { name: "Lina", added: 6.10, health: 570, damage: 53, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Shadow Fiend", added: 6.10, health: 600, damage: 50, attribute: "Agility", attackType: "Ranged" },
+        { name: "Storm Spirit", added: 6.10, health: 610, damage: 49, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Drow Ranger", added: 6.10, health: 570, damage: 51, attribute: "Agility", attackType: "Ranged" },
+        { name: "Tidehunter", added: 6.10, health: 720, damage: 59, attribute: "Strength", attackType: "Melee" },
+        { name: "Lion", added: 6.10, health: 560, damage: 46, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Witch Doctor", added: 6.10, health: 570, damage: 50, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Zeus", added: 6.10, health: 590, damage: 45, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Slark", added: 6.73, health: 630, damage: 53, attribute: "Agility", attackType: "Melee" },
+        { name: "Ember Spirit", added: 6.73, health: 610, damage: 56, attribute: "Agility", attackType: "Melee" },
+        { name: "Oracle", added: 6.78, health: 580, damage: 44, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Monkey King", added: 7.00, health: 660, damage: 57, attribute: "Agility", attackType: "Melee" },
+        { name: "Dark Willow", added: 7.07, health: 595, damage: 48, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Pangolier", added: 7.07, health: 650, damage: 54, attribute: "Agility", attackType: "Melee" },
+        { name: "Mars", added: 7.21, health: 680, damage: 60, attribute: "Strength", attackType: "Melee" },
+        { name: "Snapfire", added: 7.23, health: 610, damage: 51, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Void Spirit", added: 7.23, health: 630, damage: 55, attribute: "Intelligence", attackType: "Melee" },
+        { name: "Hoodwink", added: 7.28, health: 580, damage: 50, attribute: "Agility", attackType: "Ranged" },
+        { name: "Primal Beast", added: 7.31, health: 690, damage: 63, attribute: "Strength", attackType: "Melee" },
+        { name: "Muerta", added: 7.32, health: 590, damage: 52, attribute: "Agility", attackType: "Ranged" },
+        { name: "Ringmaster", added: 7.36, health: 600, damage: 49, attribute: "Intelligence", attackType: "Ranged" }
+    ];
+
+    // нормализация имени (для сравнения и поиска)
+    function normalize(str) {
+        return str.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+    }
+
+    // получить героя дня (один и тот же на текущую дату UTC)
+    function getHeroOfTheDay() {
+        const today = new Date();
+        const daySeed = today.getUTCFullYear() * 366 + today.getUTCMonth() * 31 + today.getUTCDate();
+        const index = daySeed % HEROES_DB.length;
+        return { ...HEROES_DB[index] };
+    }
+
+    let secretHero = getHeroOfTheDay();
+    let attempts = [];
+    let gameOver = false;
+
+    // функция для сравнения значений 
+    function compareAdded(guessVal, secretVal) {
+        if (guessVal === secretVal) return { class: "green", arrow: "" };
+        if (guessVal < secretVal) return { class: "red", arrow: "arrow-up" };
+        return { class: "red", arrow: "arrow-down" };
+    }
+
+    function compareNumber(guess, secret, fieldName) {
+        if (guess === secret) return { class: "green", arrow: "" };
+        if (guess < secret) return { class: "red", arrow: "arrow-up" };
+        return { class: "red", arrow: "arrow-down" };
+    }
+
+    function compareAttribute(guess, secret) {
+        if (guess === secret) return "green";
+        // можно сделать жёлтый если "сила/ловкость?" но не будем усложнять.
+        return "red";
+    }
+
+    function compareAttackType(guess, secret) {
+        if (guess === secret) return "green";
+        return "red";
+    }
+
+    // добавить попытку в таблицу
+    function addAttempt(heroName) {
+        const heroGuess = HEROES_DB.find(h => normalize(h.name) === normalize(heroName));
+        if (!heroGuess) return false;
+
+        // проверяем не угадан ли уже
+        if (attempts.some(a => a.name === heroGuess.name)) {
+            document.getElementById("messageBox").innerHTML = "⚠️ Вы уже пробовали этого героя!";
+            return false;
+        }
+
+        attempts.push({ ...heroGuess });
+        renderTable();
+
+        // проверка победы
+        if (heroGuess.name === secretHero.name) {
+            document.getElementById("messageBox").innerHTML = `🎉 ПОБЕДА! Герой дня — ${secretHero.name} 🎉<br>Вы угадали за ${attempts.length} попыток. Обновите страницу завтра для нового героя!`;
+            gameOver = true;
+            return true;
+        } else if (attempts.length >= 6) {
+            document.getElementById("messageBox").innerHTML = `💀 Поражение... Герой дня был: ${secretHero.name} (${secretHero.attribute}, добавлен ${secretHero.added}) 💀`;
+            gameOver = true;
+            return true;
+        } else {
+            document.getElementById("messageBox").innerHTML = `❌ Не угадал! Осталось попыток: ${6 - attempts.length}`;
+            return true;
+        }
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById("tableBody");
+        tbody.innerHTML = "";
+        for (let guess of attempts) {
+            const row = tbody.insertRow();
+
+            // герой (имя)
+            const cellHero = row.insertCell(0);
+            cellHero.innerText = guess.name;
+            (guess.name === secretHero.name) ? cellHero.className = "green" : cellHero.className = "";
+
+            // добавлен (число)
+            const cellAdd = row.insertCell(1);
+            let addComp = compareAdded(guess.added, secretHero.added);
+            cellAdd.innerText = guess.added;
+            cellAdd.className = addComp.class;
+            if (addComp.arrow) cellAdd.classList.add(addComp.arrow);
+
+            // баз. ХП
+            const cellHp = row.insertCell(2);
+            let hpComp = compareNumber(guess.health, secretHero.health, 'health');
+            cellHp.innerText = guess.health;
+            cellHp.className = hpComp.class;
+            if (hpComp.arrow) cellHp.classList.add(hpComp.arrow);
+
+            // баз. урон
+            const cellDmg = row.insertCell(3);
+            let dmgComp = compareNumber(guess.damage, secretHero.damage, 'damage');
+            cellDmg.innerText = guess.damage;
+            cellDmg.className = dmgComp.class;
+            if (dmgComp.arrow) cellDmg.classList.add(dmgComp.arrow);
+
+            // атрибут
+            const cellAttr = row.insertCell(4);
+            cellAttr.innerText = guess.attribute;
+            cellAttr.className = compareAttribute(guess.attribute, secretHero.attribute);
+
+            // тип атаки
+            const cellType = row.insertCell(5);
+            cellType.innerText = guess.attackType;
+            cellType.className = compareAttackType(guess.attackType, secretHero.attackType);
+        }
+
+        document.getElementById("attemptCount").innerText = attempts.length;
+    }
+
+    // поиск подсказок
+    const heroInput = document.getElementById("heroInput");
+    const suggestionsList = document.getElementById("suggestionsList");
+    const guessBtn = document.getElementById("guessBtn");
+
+    function updateSuggestions() {
+        const query = heroInput.value.trim().toLowerCase();
+        if (!query) {
+            suggestionsList.style.display = "none";
+            return;
+        }
+        const filtered = HEROES_DB.filter(h => h.name.toLowerCase().includes(query));
+        if (filtered.length === 0) {
+            suggestionsList.style.display = "none";
+            return;
+        }
+        suggestionsList.innerHTML = "";
+        filtered.forEach(hero => {
+            const li = document.createElement("li");
+            li.innerText = hero.name;
+            li.onclick = () => {
+                heroInput.value = hero.name;
+                suggestionsList.style.display = "none";
+            };
+            suggestionsList.appendChild(li);
+        });
+        suggestionsList.style.display = "block";
+    }
+
+    heroInput.addEventListener("input", updateSuggestions);
+    document.addEventListener("click", (e) => {
+        if (e.target !== heroInput && !suggestionsList.contains(e.target)) {
+            suggestionsList.style.display = "none";
+        }
+    });
+
+    function makeGuess() {
+        if (gameOver) {
+            document.getElementById("messageBox").innerHTML = "Игра завершена. Обновите страницу для новой игры! (или завтра будет новый герой)";
+            return;
+        }
+        const guessRaw = heroInput.value.trim();
+        if (!guessRaw) return;
+        const matchedHero = HEROES_DB.find(h => normalize(h.name) === normalize(guessRaw));
+        if (!matchedHero) {
+            document.getElementById("messageBox").innerHTML = `❌ Герой "${guessRaw}" не найден в базе. Попробуйте другого.`;
+            return;
+        }
+        const finished = addAttempt(matchedHero.name);
+        if (finished) {
+            if (matchedHero.name === secretHero.name) gameOver = true;
+            else if (attempts.length >= 6) gameOver = true;
+        }
+        heroInput.value = "";
+        suggestionsList.style.display = "none";
+    }
+
+    guessBtn.addEventListener("click", makeGuess);
+    heroInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") makeGuess();
+    });
+
+    // начальное сообщение
+    document.getElementById("messageBox").innerHTML = `  Введи имя героя (например, Pudge, Anti-Mage). ${6 - attempts.length} попыток.`;
+    renderTable();
+
+
+    console.log(" Герой дня (для теста):", secretHero.name, secretHero);
+</script>
+</body>
+</html>
