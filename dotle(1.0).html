@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Dotle — угадай героя Dota 2 </title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0a0f1e 0%, #0f172a 100%);
+            font-family: 'Segoe UI', 'Courier New', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .game-container {
+            max-width: 1300px;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(12px);
+            border-radius: 2rem;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            box-shadow: 0 25px 40px rgba(0, 0, 0, 0.5);
+            padding: 20px;
+            transition: transform 0.2s;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin: 0 0 0.25rem 0;
+            background: linear-gradient(135deg, #e6b422, #ffd966);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: titleGlow 2s infinite alternate;
+        }
+
+        @keyframes titleGlow {
+            0% { filter: drop-shadow(0 0 2px #ffd966); }
+            100% { filter: drop-shadow(0 0 8px #facc15); }
+        }
+
+        .sub {
+            text-align: center;
+            color: #b9c3d9;
+            font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+            font-style: italic;
+        }
+
+        .search-area {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            position: relative;
+        }
+
+        .search-input {
+            flex: 3;
+            padding: 14px 20px;
+            font-size: 1.1rem;
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 60px;
+            color: #f1f5f9;
+            font-family: monospace;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            border-color: #eab308;
+            box-shadow: 0 0 12px #eab308aa;
+            transform: scale(1.02);
+        }
+
+        .suggestions {
+            position: absolute;
+            top: 60px;
+            left: 0;
+            right: 0;
+            background: #1e293b;
+            border-radius: 20px;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            max-height: 260px;
+            overflow-y: auto;
+            z-index: 100;
+            border: 1px solid #eab308;
+            display: none;
+            animation: fadeInDown 0.2s ease;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .suggestions li {
+            padding: 10px 18px;
+            cursor: pointer;
+            color: #cbd5e6;
+            border-bottom: 1px solid #334155;
+            transition: background 0.15s;
+        }
+
+        .suggestions li:hover {
+            background: #eab308;
+            color: #0f172a;
+            font-weight: bold;
+        }
+
+        .guess-btn, .newgame-btn {
+            flex: 1;
+            background: #eab308;
+            border: none;
+            border-radius: 60px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            color: #0f172a;
+            font-family: monospace;
+            padding: 14px 8px;
+        }
+
+        .newgame-btn {
+            background: #3b4252;
+            color: #ffd966;
+        }
+
+        .guess-btn:hover, .newgame-btn:hover {
+            transform: scale(1.05);
+            filter: brightness(1.1);
+        }
+
+        .guess-btn:active, .newgame-btn:active {
+            transform: scale(0.98);
+        }
+
+        .attempt-counter {
+            text-align: right;
+            color: #e2e8f0;
+            margin-bottom: 15px;
+            font-weight: bold;
+            animation: fadeIn 0.5s;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 1.2rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            font-family: monospace;
+        }
+
+        th, td {
+            padding: 12px 8px;
+            text-align: center;
+            border-bottom: 1px solid #334155;
+            color: #f8fafc;
+        }
+
+        th {
+            background-color: #0f172a;
+            color: #ffd966;
+        }
+
+        td {
+            background-color: #0f172a80;
+            transition: all 0.2s;
+        }
+
+        /* Анимация появления строк */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        tr {
+            animation: slideIn 0.25s ease-out;
+        }
+
+        .green {
+            background-color: #15803d !important;
+            color: white;
+            box-shadow: 0 0 6px #15803d;
+        }
+
+        .red {
+            background-color: #991b1b !important;
+            color: #fecaca;
+        }
+
+        .arrow-up::after {
+            content: " ▲";
+            font-size: 0.7rem;
+            color: #bbf7d0;
+        }
+
+        .arrow-down::after {
+            content: " ▼";
+            font-size: 0.7rem;
+            color: #fecaca;
+        }
+
+        .message {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            padding: 12px;
+            border-radius: 40px;
+            background: #1e293b;
+            transition: all 0.3s;
+            animation: messagePop 0.4s cubic-bezier(0.34, 1.2, 0.64, 1);
+        }
+
+        @keyframes messagePop {
+            0% { transform: scale(0.9); opacity: 0; }
+            80% { transform: scale(1.02); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 20px;
+            color: #64748b;
+            font-size: 0.7rem;
+        }
+
+        @media (max-width: 650px) {
+            th, td { padding: 8px 4px; font-size: 0.65rem; }
+            h1 { font-size: 1.8rem; }
+            .guess-btn, .newgame-btn { font-size: 0.8rem; padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+<div class="game-container">
+    <h1>⚔️ DOTLE ⚔️</h1>
+    <div class="sub">все герои </div>
+
+    <div class="search-area">
+        <input type="text" id="heroInput" class="search-input" placeholder="введите имя героя (Pudge, Invoker, anti-maga...)" autocomplete="off">
+        <button id="guessBtn" class="guess-btn">угадать →</button>
+        <button id="newGameBtn" class="newgame-btn">🎲 новая игра</button>
+        <ul id="suggestionsList" class="suggestions"></ul>
+    </div>
+
+    <div class="attempt-counter">попытки: <span id="attemptCount">0</span> / 6</div>
+
+    <div class="table-wrapper">
+        <table id="guessTable">
+            <thead>
+                <tr><th>Герой</th><th>добавлен(патч)</th><th>Баз. ХП</th><th>Баз. урон</th><th>Атрибут</th><th>Тип атаки</th></tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr><td colspan="6" style="text-align:center">✨ начните игру — введите имя ✨</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="messageBox" class="message"></div>
+    <footer>🟢 Совпадает &nbsp;&nbsp; 🔴 Не совпадает &nbsp; ⬆️ ⬇️ Больше/меньше &nbsp; | &nbsp; добавлены новые герои </footer>
+</div>
+
+<script>
+    // ВСЕ ГЕРОИ 
+    const HEROES_DB = [
+        // Strength (Сила)
+        { name: "Abaddon", added: 6.10, health: 660, damage: 56, attribute: "Universal", attackType: "Melee" },
+        { name: "Alchemist", added: 6.10, health: 650, damage: 52, attribute: "Strength", attackType: "Melee" },
+        { name: "Axe", added: 6.10, health: 700, damage: 54, attribute: "Strength", attackType: "Melee" },
+        { name: "Beastmaster", added: 6.10, health: 680, damage: 58, attribute: "Universal", attackType: "Melee" },
+        { name: "Brewmaster", added: 6.10, health: 690, damage: 55, attribute: "Universal", attackType: "Melee" },
+        { name: "Bristleback", added: 6.10, health: 710, damage: 52, attribute: "Strength", attackType: "Melee" },
+        { name: "Centaur Warrunner", added: 6.10, health: 730, damage: 60, attribute: "Strength", attackType: "Melee" },
+        { name: "Chaos Knight", added: 6.10, health: 680, damage: 57, attribute: "Strength", attackType: "Melee" },
+        { name: "Clockwerk", added: 6.10, health: 670, damage: 53, attribute: "Strength", attackType: "Melee" },
+        { name: "Dawnbreaker", added: 7.31, health: 660, damage: 58, attribute: "Strength", attackType: "Melee" },
+        { name: "Doom", added: 6.10, health: 720, damage: 59, attribute: "Universal", attackType: "Melee" },
+        { name: "Dragon Knight", added: 6.10, health: 700, damage: 55, attribute: "Strength", attackType: "Melee" },
+        { name: "Earth Spirit", added: 6.78, health: 650, damage: 52, attribute: "Universal", attackType: "Melee" },
+        { name: "Earthshaker", added: 6.10, health: 680, damage: 62, attribute: "Strength", attackType: "Melee" },
+        { name: "Elder Titan", added: 6.73, health: 690, damage: 57, attribute: "Strength", attackType: "Melee" },
+        { name: "Huskar", added: 6.10, health: 640, damage: 49, attribute: "Strength", attackType: "Ranged" },
+        { name: "Io", added: 6.68, health: 580, damage: 46, attribute: "Universal", attackType: "Ranged" },
+        { name: "Kunkka", added: 6.10, health: 690, damage: 58, attribute: "Strength", attackType: "Melee" },
+        { name: "Legion Commander", added: 6.73, health: 680, damage: 60, attribute: "Strength", attackType: "Melee" },
+        { name: "Lifestealer", added: 6.10, health: 670, damage: 56, attribute: "Strength", attackType: "Melee" },
+        { name: "Lycan", added: 6.10, health: 660, damage: 54, attribute: "Universal", attackType: "Melee" },
+        { name: "Magnus", added: 6.10, health: 690, damage: 59, attribute: "Universal", attackType: "Melee" },
+        { name: "Marci", added: 7.30, health: 640, damage: 55, attribute: "Universal", attackType: "Melee" },
+        { name: "Mars", added: 7.21, health: 680, damage: 60, attribute: "Strength", attackType: "Melee" },
+        { name: "Night Stalker", added: 6.10, health: 700, damage: 58, attribute: "Strength", attackType: "Melee" },
+        { name: "Omniknight", added: 6.10, health: 670, damage: 53, attribute: "Strength", attackType: "Melee" },
+        { name: "Phoenix", added: 6.73, health: 620, damage: 51, attribute: "Strength", attackType: "Ranged" },
+        { name: "Primal Beast", added: 7.31, health: 690, damage: 63, attribute: "Strength", attackType: "Melee" },
+        { name: "Pudge", added: 6.10, health: 710, damage: 58, attribute: "Strength", attackType: "Melee" },
+        { name: "Sand King", added: 6.10, health: 660, damage: 51, attribute: "Strength", attackType: "Melee" },
+        { name: "Slardar", added: 6.10, health: 680, damage: 59, attribute: "Strength", attackType: "Melee" },
+        { name: "Snapfire", added: 7.23, health: 610, damage: 51, attribute: "Strength", attackType: "Ranged" },
+        { name: "Spirit Breaker", added: 6.10, health: 720, damage: 57, attribute: "Strength", attackType: "Melee" },
+        { name: "Sven", added: 6.10, health: 690, damage: 59, attribute: "Strength", attackType: "Melee" },
+        { name: "Tidehunter", added: 6.10, health: 730, damage: 59, attribute: "Strength", attackType: "Melee" },
+        { name: "Timbersaw", added: 6.73, health: 670, damage: 54, attribute: "Strength", attackType: "Melee" },
+        { name: "Tiny", added: 6.10, health: 700, damage: 61, attribute: "Strength", attackType: "Melee" },
+        { name: "Treant Protector", added: 6.10, health: 710, damage: 62, attribute: "Strength", attackType: "Melee" },
+        { name: "Tusk", added: 6.70, health: 670, damage: 55, attribute: "Strength", attackType: "Melee" },
+        { name: "Underlord", added: 6.82, health: 690, damage: 56, attribute: "Strength", attackType: "Melee" },
+        { name: "Undying", added: 6.68, health: 680, damage: 52, attribute: "Strength", attackType: "Melee" },
+        { name: "Wraith King", added: 6.10, health: 700, damage: 60, attribute: "Strength", attackType: "Melee" },
+        // Agility
+        { name: "Anti-Mage", added: 6.10, health: 620, damage: 52, attribute: "Agility", attackType: "Melee" },
+        { name: "Arc Warden", added: 6.86, health: 590, damage: 53, attribute: "Universal", attackType: "Ranged" },
+        { name: "Bloodseeker", added: 6.10, health: 630, damage: 55, attribute: "Agility", attackType: "Melee" },
+        { name: "Bounty Hunter", added: 6.10, health: 610, damage: 51, attribute: "Agility", attackType: "Melee" },
+        { name: "Clinkz", added: 6.10, health: 580, damage: 48, attribute: "Agility", attackType: "Ranged" },
+        { name: "Drow Ranger", added: 6.10, health: 570, damage: 51, attribute: "Agility", attackType: "Ranged" },
+        { name: "Ember Spirit", added: 6.73, health: 610, damage: 56, attribute: "Agility", attackType: "Melee" },
+        { name: "Faceless Void", added: 6.10, health: 640, damage: 58, attribute: "Agility", attackType: "Melee" },
+        { name: "Gyrocopter", added: 6.10, health: 600, damage: 51, attribute: "Agility", attackType: "Ranged" },
+        { name: "Hoodwink", added: 7.28, health: 580, damage: 50, attribute: "Agility", attackType: "Ranged" },
+        { name: "Juggernaut", added: 6.10, health: 640, damage: 56, attribute: "Agility", attackType: "Melee" },
+        { name: "Luna", added: 6.10, health: 600, damage: 53, attribute: "Agility", attackType: "Ranged" },
+        { name: "Medusa", added: 6.10, health: 570, damage: 48, attribute: "Agility", attackType: "Ranged" },
+        { name: "Meepo", added: 6.10, health: 590, damage: 48, attribute: "Agility", attackType: "Melee" },
+        { name: "Mirana", added: 6.10, health: 590, damage: 51, attribute: "Universal", attackType: "Ranged" },
+        { name: "Monkey King", added: 7.00, health: 660, damage: 57, attribute: "Agility", attackType: "Melee" },
+        { name: "Morphling", added: 6.10, health: 570, damage: 46, attribute: "Agility", attackType: "Ranged" },
+        { name: "Muerta", added: 7.32, health: 590, damage: 52, attribute: "Agility", attackType: "Ranged" },
+        { name: "Naga Siren", added: 6.10, health: 600, damage: 51, attribute: "Agility", attackType: "Melee" },
+        { name: "Nyx Assassin", added: 6.10, health: 610, damage: 52, attribute: "Agility", attackType: "Melee" },
+        { name: "Pangolier", added: 7.07, health: 650, damage: 54, attribute: "Agility", attackType: "Melee" },
+        { name: "Phantom Assassin", added: 6.10, health: 590, damage: 52, attribute: "Agility", attackType: "Melee" },
+        { name: "Phantom Lancer", added: 6.10, health: 600, damage: 53, attribute: "Agility", attackType: "Melee" },
+        { name: "Razor", added: 6.10, health: 610, damage: 53, attribute: "Agility", attackType: "Ranged" },
+        { name: "Riki", added: 6.10, health: 580, damage: 54, attribute: "Agility", attackType: "Melee" },
+        { name: "Shadow Fiend", added: 6.10, health: 600, damage: 50, attribute: "Agility", attackType: "Ranged" },
+        { name: "Slark", added: 6.73, health: 630, damage: 53, attribute: "Agility", attackType: "Melee" },
+        { name: "Sniper", added: 6.10, health: 560, damage: 47, attribute: "Agility", attackType: "Ranged" },
+        { name: "Spectre", added: 6.10, health: 620, damage: 52, attribute: "Agility", attackType: "Melee" },
+        { name: "Storm Spirit", added: 6.10, health: 610, damage: 49, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Templar Assassin", added: 6.10, health: 590, damage: 53, attribute: "Agility", attackType: "Ranged" },
+        { name: "Terrorblade", added: 6.60, health: 600, damage: 52, attribute: "Agility", attackType: "Melee" },
+        { name: "Troll Warlord", added: 6.10, health: 640, damage: 54, attribute: "Agility", attackType: "Ranged" },
+        { name: "Ursa", added: 6.10, health: 630, damage: 55, attribute: "Agility", attackType: "Melee" },
+        { name: "Vengeful Spirit", added: 6.10, health: 580, damage: 49, attribute: "Agility", attackType: "Ranged" },
+        { name: "Venomancer", added: 6.10, health: 590, damage: 48, attribute: "Agility", attackType: "Ranged" },
+        { name: "Viper", added: 6.10, health: 600, damage: 48, attribute: "Agility", attackType: "Ranged" },
+        { name: "Weaver", added: 6.10, health: 580, damage: 50, attribute: "Agility", attackType: "Ranged" },
+        // Intelligence
+        { name: "Ancient Apparition", added: 6.68, health: 560, damage: 45, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Bane", added: 6.10, health: 570, damage: 48, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Batrider", added: 6.10, health: 620, damage: 49, attribute: "Universal", attackType: "Ranged" },
+        { name: "Chen", added: 6.10, health: 590, damage: 47, attribute: "Universal", attackType: "Ranged" },
+        { name: "Crystal Maiden", added: 6.10, health: 550, damage: 45, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Dark Seer", added: 6.10, health: 640, damage: 52, attribute: "Universal", attackType: "Melee" },
+        { name: "Dark Willow", added: 7.07, health: 595, damage: 48, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Dazzle", added: 6.10, health: 560, damage: 46, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Death Prophet", added: 6.10, health: 620, damage: 51, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Disruptor", added: 6.10, health: 580, damage: 47, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Enchantress", added: 6.10, health: 570, damage: 48, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Enigma", added: 6.10, health: 590, damage: 47, attribute: "Universal", attackType: "Ranged" },
+        { name: "Grimstroke", added: 7.19, health: 580, damage: 48, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Invoker", added: 6.10, health: 600, damage: 44, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Jakiro", added: 6.10, health: 610, damage: 49, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Keeper of the Light", added: 6.10, health: 580, damage: 47, attribute: "Universal", attackType: "Ranged" },
+        { name: "Leshrac", added: 6.10, health: 600, damage: 51, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Lich", added: 6.10, health: 570, damage: 46, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Lina", added: 6.10, health: 570, damage: 53, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Lion", added: 6.10, health: 560, damage: 46, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Nature's Prophet", added: 6.10, health: 590, damage: 50, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Necrophos", added: 6.10, health: 610, damage: 49, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Oracle", added: 6.78, health: 580, damage: 44, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Outworld Destroyer", added: 6.10, health: 590, damage: 49, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Puck", added: 6.10, health: 580, damage: 48, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Pugna", added: 6.10, health: 560, damage: 47, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Queen of Pain", added: 6.10, health: 570, damage: 48, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Rubick", added: 6.72, health: 570, damage: 47, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Shadow Demon", added: 6.10, health: 580, damage: 49, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Silencer", added: 6.10, health: 590, damage: 47, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Skywrath Mage", added: 6.73, health: 570, damage: 47, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Techies", added: 6.70, health: 600, damage: 44, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Tinker", added: 6.10, health: 590, damage: 48, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Void Spirit", added: 7.23, health: 630, damage: 55, attribute: "Intelligence", attackType: "Melee" },
+        { name: "Winter Wyvern", added: 6.82, health: 600, damage: 48, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Witch Doctor", added: 6.10, health: 570, damage: 50, attribute: "Intelligence", attackType: "Ranged" },
+        { name: "Zeus", added: 6.10, health: 590, damage: 45, attribute: "Intelligence", attackType: "Ranged" }
+    ];
+
+    // Нормализация имени (для сравнения)
+    function normalize(str) {
+        return str.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+    }
+
+    let secretHero = null;
+    let attempts = [];
+    let gameOver = false;
+
+    // случайный герой из базы
+    function getRandomHero() {
+        const idx = Math.floor(Math.random() * HEROES_DB.length);
+        return { ...HEROES_DB[idx] };
+    }
+
+    // новая игра
+    function initNewGame() {
+        secretHero = getRandomHero();
+        attempts = [];
+        gameOver = false;
+        renderTable();
+        document.getElementById("attemptCount").innerText = "0";
+        const msgDiv = document.getElementById("messageBox");
+        msgDiv.innerHTML = `🎲 новая игра! загадан герой ${secretHero.attribute}, попробуйте угадать. 6 попыток.`;
+        msgDiv.style.animation = "none";
+        msgDiv.offsetHeight;
+        msgDiv.style.animation = "messagePop 0.4s cubic-bezier(0.34,1.2,0.64,1)";
+        document.getElementById("heroInput").value = "";
+        document.getElementById("heroInput").disabled = false;
+        document.getElementById("guessBtn").disabled = false;
+        console.log("🔍 Загадан:", secretHero.name, secretHero);
+    }
+
+    // сравнения
+    function compareAdded(guess, secret) {
+        if (guess === secret) return { class: "green", arrow: "" };
+        return { class: "red", arrow: guess < secret ? "arrow-up" : "arrow-down" };
+    }
+    function compareNumber(guess, secret) {
+        if (guess === secret) return { class: "green", arrow: "" };
+        return { class: "red", arrow: guess < secret ? "arrow-up" : "arrow-down" };
+    }
+    function compareExact(guess, secret) {
+        return guess === secret ? "green" : "red";
+    }
+
+    function addAttempt(heroName) {
+        const heroGuess = HEROES_DB.find(h => normalize(h.name) === normalize(heroName));
+        if (!heroGuess) {
+            document.getElementById("messageBox").innerHTML = `❌ Герой "${heroName}" не найден в базе.`;
+            return false;
+        }
+        if (attempts.some(a => a.name === heroGuess.name)) {
+            document.getElementById("messageBox").innerHTML = "⚠️ Вы уже пробовали этого героя!";
+            return false;
+        }
+        attempts.push({ ...heroGuess });
+        renderTable();
+
+        if (heroGuess.name === secretHero.name) {
+            document.getElementById("messageBox").innerHTML = `🎉 ПОБЕДА! Герой — ${secretHero.name} (${secretHero.attribute}) 🎉<br>Нажмите «Новая игра», чтобы продолжить.`;
+            gameOver = true;
+            return true;
+        } else if (attempts.length >= 6) {
+            document.getElementById("messageBox").innerHTML = `💀 Поражение... Загадан был: ${secretHero.name} (${secretHero.attribute}, добавлен ${secretHero.added}) 💀`;
+            gameOver = true;
+            return true;
+        } else {
+            document.getElementById("messageBox").innerHTML = `❌ Не угадал! Осталось попыток: ${6 - attempts.length}`;
+            return true;
+        }
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById("tableBody");
+        tbody.innerHTML = "";
+        for (let guess of attempts) {
+            const row = tbody.insertRow();
+            const cellName = row.insertCell(0);
+            cellName.innerText = guess.name;
+            if (guess.name === secretHero.name) cellName.className = "green";
+
+            const cellAdd = row.insertCell(1);
+            let addComp = compareAdded(guess.added, secretHero.added);
+            cellAdd.innerText = guess.added;
+            cellAdd.className = addComp.class;
+            if (addComp.arrow) cellAdd.classList.add(addComp.arrow);
+
+            const cellHp = row.insertCell(2);
+            let hpComp = compareNumber(guess.health, secretHero.health);
+            cellHp.innerText = guess.health;
+            cellHp.className = hpComp.class;
+            if (hpComp.arrow) cellHp.classList.add(hpComp.arrow);
+
+            const cellDmg = row.insertCell(3);
+            let dmgComp = compareNumber(guess.damage, secretHero.damage);
+            cellDmg.innerText = guess.damage;
+            cellDmg.className = dmgComp.class;
+            if (dmgComp.arrow) cellDmg.classList.add(dmgComp.arrow);
+
+            const cellAttr = row.insertCell(4);
+            cellAttr.innerText = guess.attribute;
+            cellAttr.className = compareExact(guess.attribute, secretHero.attribute);
+
+            const cellType = row.insertCell(5);
+            cellType.innerText = guess.attackType;
+            cellType.className = compareExact(guess.attackType, secretHero.attackType);
+        }
+        document.getElementById("attemptCount").innerText = attempts.length;
+    }
+
+    // автоподсказки
+    const heroInput = document.getElementById("heroInput");
+    const suggestionsList = document.getElementById("suggestionsList");
+    function updateSuggestions() {
+        const query = heroInput.value.trim().toLowerCase();
+        if (query.length < 2) {
+            suggestionsList.style.display = "none";
+            return;
+        }
+        const filtered = HEROES_DB.filter(h => h.name.toLowerCase().includes(query));
+        if (filtered.length === 0) {
+            suggestionsList.style.display = "none";
+            return;
+        }
+        suggestionsList.innerHTML = "";
+        filtered.forEach(hero => {
+            const li = document.createElement("li");
+            li.innerText = hero.name;
+            li.onmousedown = (e) => {
+                e.preventDefault();
+                heroInput.value = hero.name;
+                suggestionsList.style.display = "none";
+            };
+            suggestionsList.appendChild(li);
+        });
+        suggestionsList.style.display = "block";
+    }
+    heroInput.addEventListener("input", updateSuggestions);
+    document.addEventListener("click", (e) => {
+        if (e.target !== heroInput && !suggestionsList.contains(e.target)) {
+            suggestionsList.style.display = "none";
+        }
+    });
+
+    function makeGuess() {
+        if (gameOver) {
+            document.getElementById("messageBox").innerHTML = "Игра окончена. Нажмите «Новая игра»!";
+            return;
+        }
+        const raw = heroInput.value.trim();
+        if (!raw) return;
+        const matched = HEROES_DB.find(h => normalize(h.name) === normalize(raw));
+        if (!matched) {
+            document.getElementById("messageBox").innerHTML = `❌ Герой "${raw}" не найден. Попробуйте другого.`;
+            return;
+        }
+        addAttempt(matched.name);
+        heroInput.value = "";
+        suggestionsList.style.display = "none";
+    }
+
+    document.getElementById("guessBtn").addEventListener("click", makeGuess);
+    document.getElementById("newGameBtn").addEventListener("click", () => initNewGame());
+    heroInput.addEventListener("keypress", (e) => { if (e.key === "Enter") makeGuess(); });
+
+    // Запуск игры
+    initNewGame();
+</script>
+</body>
+</html>
